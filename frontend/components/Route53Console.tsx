@@ -528,27 +528,68 @@ export default function Route53Console({
   if (!user) {
     return (
       <main className="auth-shell">
-        <div className="auth-card">
-          <div className="brand-row">
-            <span className="aws-badge">AWS</span>
-            <span className="brand-name">Route53</span>
+        <div className="auth-container">
+          <div className="auth-brand">
+            <span className="auth-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 36 36" fill="none">
+                <path d="M8 25.5 17.8 10l10.2 15.5" />
+                <circle cx="8" cy="26" r="3" />
+                <circle cx="18" cy="10" r="3" />
+                <circle cx="28" cy="26" r="3" />
+              </svg>
+            </span>
+            <span>Route 53</span>
+            <span className="auth-brand-divider" aria-hidden="true" />
+            <span className="auth-brand-caption">DNS console</span>
           </div>
-          <h1>Sign in to Route53</h1>
-          <p>Mocked authentication for DNS zone management.</p>
-          {error ? <div className="alert error">{error}</div> : null}
-          <form onSubmit={login} className="auth-form">
-            <label>
-              Username
-              <input name="username" defaultValue="admin" required />
-            </label>
-            <label>
-              Password
-              <input name="password" type="password" defaultValue="admin123" required />
-            </label>
-            <button type="submit" disabled={authLoading}>
-              {authLoading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
+          <div className="auth-layout">
+            <section className="auth-card" aria-labelledby="sign-in-title">
+              <p className="auth-eyebrow">Console access</p>
+              <h1 id="sign-in-title">Sign in</h1>
+              <p className="auth-intro">Access your hosted zones and DNS records.</p>
+              <div className="auth-account-type">
+                <span className="auth-radio" aria-hidden="true"><span /></span>
+                <span>
+                  <strong>Demo account</strong>
+                  <small>Assignment environment access</small>
+                </span>
+              </div>
+              {error ? <div className="alert error" role="alert">{error}</div> : null}
+              <form onSubmit={login} className="auth-form">
+                <label>
+                  Username
+                  <input name="username" autoComplete="username" defaultValue="admin" required />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" autoComplete="current-password" defaultValue="admin123" required />
+                </label>
+                <button type="submit" disabled={authLoading}>
+                  {authLoading ? "Signing in..." : "Continue"}
+                </button>
+              </form>
+              <p className="auth-demo-note">Demo credentials: <strong>admin</strong> / <strong>admin123</strong></p>
+            </section>
+            <aside className="auth-promo">
+              <div className="auth-promo-lines" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="auth-promo-content">
+                <p className="auth-promo-kicker">DNS MANAGEMENT</p>
+                <h2>Keep your domains in view.</h2>
+                <p>Manage hosted zones and the records that connect your services.</p>
+                <div className="auth-feature-list">
+                  <span><i aria-hidden="true">01</i> Hosted zones</span>
+                  <span><i aria-hidden="true">02</i> DNS record sets</span>
+                  <span><i aria-hidden="true">03</i> Zone import &amp; export</span>
+                </div>
+              </div>
+              <span className="auth-promo-orbit auth-promo-orbit-one" aria-hidden="true" />
+              <span className="auth-promo-orbit auth-promo-orbit-two" aria-hidden="true" />
+            </aside>
+          </div>
         </div>
       </main>
     );
