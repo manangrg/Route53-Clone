@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type User = {
@@ -129,6 +130,8 @@ export default function Route53Console({
   const [error, setError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState("Hosted Zones");
+  const [consoleSearch, setConsoleSearch] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState("Global");
   const [formState, setFormState] = useState<ModalFormState>(() => ({
     ...defaultModalState,
     zone: {
@@ -142,12 +145,37 @@ export default function Route53Console({
   }));
   const [importText, setImportText] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
+  const consoleSearchInput = useRef<HTMLInputElement>(null);
+  const consoleBarRef = useRef<HTMLDivElement>(null);
 
   const selectedZone = zoneDetail ?? (selectedZoneId !== null ? zones.find((zone) => zone.id === selectedZoneId) ?? null : null);
 
   useEffect(() => {
     document.body.classList.toggle("dark-mode", darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    const closeMenusOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element) || target.closest(".console-menu")) return;
+      consoleBarRef.current
+        ?.querySelectorAll<HTMLDetailsElement>(".console-menu[open]")
+        .forEach((menu) => {
+          menu.open = false;
+        });
+    };
+
+    document.addEventListener("pointerdown", closeMenusOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeMenusOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get("search") ?? "";
+    // Keep the console search controls in sync when a hosted-zone URL carries a search query.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConsoleSearch(query);
+    setSearchTerm(query);
+  }, []);
 
   const loadZones = async () => {
     try {
@@ -252,6 +280,11 @@ export default function Route53Console({
     const onShortcut = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        consoleSearchInput.current?.focus();
+        return;
+      }
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key === "/") {
         event.preventDefault();
@@ -317,6 +350,26 @@ export default function Route53Console({
   const openCreateZoneModal = () => {
     setError(null);
     router.push("/hosted-zones/create");
+  };
+
+  const searchHostedZones = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = consoleSearch.trim();
+    setConsoleSearch(query);
+    setSearchTerm(query);
+    setZonePage(1);
+    setError(null);
+    setActiveSection("Hosted Zones");
+    router.push(query ? `/hosted-zones?search=${encodeURIComponent(query)}` : "/hosted-zones");
+  };
+
+  const goToHostedZones = () => {
+    setError(null);
+    setActiveSection("Hosted Zones");
+    setConsoleSearch("");
+    setSearchTerm("");
+    setZonePage(1);
+    router.push("/hosted-zones");
   };
 
   const openEditZoneModal = (zone: Zone) => {
@@ -621,8 +674,7 @@ export default function Route53Console({
               type="button"
               onClick={() => {
                 if (item === "Hosted Zones") {
-                  setError(null);
-                  router.push("/hosted-zones");
+                  goToHostedZones();
                   return;
                 }
                 setActiveSection(item);
@@ -636,18 +688,68 @@ export default function Route53Console({
       </aside>
 
       <section className="content-shell">
-        <div className="console-bar">
+        <div className="console-bar" ref={consoleBarRef}>
           <div className="console-brand"><span className="aws-wordmark">aws</span><span>Console</span></div>
-          <div className="console-search"><span aria-hidden="true">⌕</span><span>Search</span><kbd>⌥ S</kbd></div>
+          <form className="console-search" onSubmit={searchHostedZones} role="search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              ref={consoleSearchInput}
+              aria-label="Search hosted zones"
+              value={consoleSearch}
+              onChange={(event) => setConsoleSearch(event.target.value)}
+              placeholder="Search hosted zones"
+            />
+            <button type="submit" aria-label="Submit hosted zone search"><kbd>⌘ K</kbd></button>
+          </form>
           <div className="console-context">
-            <button type="button" aria-label="Notifications">◉</button>
-            <button type="button">Global</button>
-            <button type="button">{user.username} ▾</button>
+            <details className="console-menu" name="console-menu">
+              <summary aria-label={`Region: ${selectedRegion}`}><span aria-hidden="true">◉</span> {selectedRegion}</summary>
+              <div className="console-menu-popover region-menu">
+                <strong>Console scope</strong>
+                {["Global", "US East (N. Virginia)", "Europe (Ireland)"].map((region) => (
+                  <button
+                    key={region}
+                    type="button"
+                    className={selectedRegion === region ? "selected" : ""}
+                    onClick={() => setSelectedRegion(region)}
+                  >
+                    {region}
+                  </button>
+                ))}
+                <small>Display preference only; demo data is shared.</small>
+              </div>
+            </details>
+            <details className="console-menu" name="console-menu">
+              <summary aria-label="Notifications">◉</summary>
+              <div className="console-menu-popover notification-menu">
+                <strong>Notifications</strong>
+                <p>You’re all caught up. There are no new notifications.</p>
+              </div>
+            </details>
+            <details className="console-menu account-menu" name="console-menu">
+              <summary>{user.username} <span aria-hidden="true">▾</span></summary>
+              <div className="console-menu-popover account-menu-popover">
+                <div className="account-menu-identity">
+                  <strong>{user.name}</strong>
+                  <small>{user.username} · {user.role}</small>
+                </div>
+                <button type="button" onClick={() => setDarkMode((previous) => !previous)}>
+                  {darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                </button>
+                <button type="button" className="account-menu-signout" onClick={logout}>Sign out</button>
+              </div>
+            </details>
           </div>
         </div>
         <header className="topbar">
           <div>
-            <div className="breadcrumbs">Services <span>›</span> Networking &amp; Content Delivery <span>›</span> Route 53</div>
+            <nav className="breadcrumbs" aria-label="Breadcrumb">
+              <Link href="/hosted-zones" onClick={goToHostedZones}>Services</Link>
+              <span aria-hidden="true">›</span>
+              <Link href="/hosted-zones" onClick={goToHostedZones}>Networking &amp; Content Delivery</Link>
+              <span aria-hidden="true">›</span>
+              <Link href="/hosted-zones" onClick={goToHostedZones}>Route 53</Link>
+            </nav>
             <h1>
               {view === "create-zone" ? "Create hosted zone"
                 : view === "edit-zone" ? "Edit hosted zone"
@@ -655,13 +757,6 @@ export default function Route53Console({
                     : view === "detail" ? selectedZone?.name || "Hosted zone details"
                       : "Hosted zones"}
             </h1>
-          </div>
-          <div className="topbar-actions">
-            <button type="button" className="ghost-button" onClick={() => setDarkMode((prev) => !prev)}>
-              {darkMode ? "Light Mode" : "Dark Mode"}
-            </button>
-            <div className="user-chip">{user.name}</div>
-            <button type="button" className="ghost-button" onClick={logout}>Sign out</button>
           </div>
         </header>
 
@@ -672,6 +767,7 @@ export default function Route53Console({
             <div>
               <p className="eyebrow">Amazon Route 53</p>
               <h2>Hosted zones <span className="count-badge">{zoneTotal}</span></h2>
+              <p className="panel-description">Choose a hosted zone to view and manage its DNS records, including A, AAAA, CNAME, MX, TXT, and more.</p>
             </div>
             <div className="header-actions">
               <button type="button" className="secondary-button" onClick={() => searchInput.current?.focus()}>
@@ -690,6 +786,7 @@ export default function Route53Console({
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
+                setConsoleSearch(e.target.value);
                 setZonePage(1);
               }}
               placeholder="Search hosted zones by domain name"
@@ -765,7 +862,7 @@ export default function Route53Console({
           <div className="card record-panel">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">DNS records</p>
+                <p className="eyebrow">DNS records · A · AAAA · CNAME · MX · TXT · and more</p>
                 <h2>{selectedZone.name}</h2>
               </div>
               <div className="header-actions">
@@ -896,12 +993,11 @@ export default function Route53Console({
             <p className="eyebrow">Amazon Route 53</p>
             <h2>{activeSection}</h2>
             <p>This area is a placeholder in this Route 53 demo.</p>
-            <button type="button" className="secondary-button" onClick={() => setActiveSection("Hosted Zones")}>
+            <button type="button" className="secondary-button" onClick={goToHostedZones}>
               Return to hosted zones
             </button>
           </div>
         ) : null}
-      </section>
 
       {formState.zone.mode && activeSection === "Hosted Zones" ? (
         <div
@@ -1061,6 +1157,7 @@ export default function Route53Console({
           </div>
         </div>
       ) : null}
+      </section>
     </main>
   );
 }

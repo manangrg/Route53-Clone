@@ -1018,8 +1018,43 @@ body.dark-mode .nav-item.active {
   color: #d5dbdb;
 }
 
+.console-search:focus-within {
+  border-color: #539fe5;
+  box-shadow: 0 0 0 1px #539fe5;
+}
+
+.console-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.console-search input::placeholder {
+  color: #d5dbdb;
+  opacity: 0.9;
+}
+
+.console-search button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
 .console-search kbd {
   margin-left: auto;
+  border: 1px solid #687078;
+  border-radius: 3px;
+  padding: 2px 5px;
+  color: #232f3e;
+  background: #f2f3f3;
+  font: inherit;
+  font-size: 0.75rem;
 }
 
 .console-context {
@@ -1030,16 +1065,117 @@ body.dark-mode .nav-item.active {
   border: 0;
   background: transparent;
   color: inherit;
+  cursor: pointer;
+}
+
+.console-menu {
+  position: relative;
+}
+
+.console-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.console-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.console-menu summary:focus-visible,
+.console-menu-popover button:focus-visible {
+  outline: 2px solid #539fe5;
+  outline-offset: 3px;
+}
+
+.console-menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 13px);
+  right: 0;
+  display: flex;
+  min-width: 220px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  white-space: normal;
+}
+
+.console-menu-popover strong {
+  padding: 3px 7px 7px;
+  font-size: 0.86rem;
+}
+
+.console-menu-popover small,
+.console-menu-popover p {
+  margin: 4px 7px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.console-menu-popover button {
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  padding: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.console-menu-popover button:hover,
+.console-menu-popover button.selected {
+  background: var(--panel-alt);
+}
+
+.account-menu-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.account-menu-identity small {
+  margin: 0 7px;
+}
+
+.console-menu-popover .account-menu-signout {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  color: #b42318;
 }
 
 .breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
   font-size: 0.82rem;
   margin-bottom: 5px;
 }
 
 .breadcrumbs span {
-  padding: 0 7px;
+  color: var(--muted);
+}
+
+.breadcrumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  color: var(--link);
+  text-decoration: underline;
 }
 
 .topbar {
@@ -1049,6 +1185,12 @@ body.dark-mode .nav-item.active {
 
 .topbar h1 {
   font-size: 1.65rem;
+}
+
+.panel-description {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .card {
