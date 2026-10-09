@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -63,6 +64,7 @@ type ModalFormState = {
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const ACTIVE_SECTION_STORAGE_KEY = "route53-active-section";
 const defaultModalState: ModalFormState = {
   zone: { mode: null, name: "", comment: "", zone_type: "public" },
   record: {
@@ -128,7 +130,7 @@ export default function Route53Console({
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [activeSection, setActiveSection] = useState("Hosted Zones");
   const [consoleSearch, setConsoleSearch] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("Global");
@@ -153,6 +155,12 @@ export default function Route53Console({
   useEffect(() => {
     document.body.classList.toggle("dark-mode", darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    if (user && view === "list") {
+      window.sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, activeSection);
+    }
+  }, [activeSection, user, view]);
 
   useEffect(() => {
     const closeMenusOnOutsideClick = (event: PointerEvent) => {
@@ -241,6 +249,18 @@ export default function Route53Console({
       try {
         const response = await apiFetch<{ user: User }>('/api/auth/me');
         setUser(response.user);
+        const savedSection = window.sessionStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
+        const initialSection = savedSection && [
+          "Dashboard",
+          "Hosted Zones",
+          "Traffic Policies",
+          "Health Checks",
+          "Resolver",
+          "Profiles",
+        ].includes(savedSection)
+          ? savedSection
+          : "Dashboard";
+        setActiveSection(view === "list" ? initialSection : "Hosted Zones");
         await loadZones();
       } catch {
         setUser(null);
@@ -324,6 +344,8 @@ export default function Route53Console({
         body: JSON.stringify({ username, password }),
       });
       setUser(response.user);
+      setActiveSection("Dashboard");
+      window.sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, "Dashboard");
       setSelectedZoneId(null);
       await loadZones();
     } catch (err) {
@@ -349,6 +371,7 @@ export default function Route53Console({
 
   const openCreateZoneModal = () => {
     setError(null);
+    window.sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, "Hosted Zones");
     router.push("/hosted-zones/create");
   };
 
@@ -360,6 +383,7 @@ export default function Route53Console({
     setZonePage(1);
     setError(null);
     setActiveSection("Hosted Zones");
+    window.sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, "Hosted Zones");
     router.push(query ? `/hosted-zones?search=${encodeURIComponent(query)}` : "/hosted-zones");
   };
 
@@ -369,6 +393,7 @@ export default function Route53Console({
     setConsoleSearch("");
     setSearchTerm("");
     setZonePage(1);
+    window.sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, "Hosted Zones");
     router.push("/hosted-zones");
   };
 
@@ -584,12 +609,7 @@ export default function Route53Console({
         <div className="auth-container">
           <div className="auth-brand">
             <span className="auth-brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 36 36" fill="none">
-                <path d="M8 25.5 17.8 10l10.2 15.5" />
-                <circle cx="8" cy="26" r="3" />
-                <circle cx="18" cy="10" r="3" />
-                <circle cx="28" cy="26" r="3" />
-              </svg>
+              <Image src="/aws-console-logo.png" alt="" width={27} height={27} priority unoptimized />
             </span>
             <span>Route 53</span>
             <span className="auth-brand-divider" aria-hidden="true" />
@@ -652,7 +672,7 @@ export default function Route53Console({
     <main className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <div className="aws-pill">AWS</div>
+          <div className="aws-pill"><Image src="/aws-console-logo.png" alt="AWS" width={28} height={26} priority unoptimized /></div>
           <div>
             <div className="sidebar-title">Route53</div>
             <small>DNS management</small>
@@ -689,7 +709,7 @@ export default function Route53Console({
 
       <section className="content-shell">
         <div className="console-bar" ref={consoleBarRef}>
-          <div className="console-brand"><span className="aws-wordmark">aws</span><span>Console</span></div>
+          <div className="console-brand"><span className="aws-wordmark-tile"><Image className="aws-wordmark" src="/aws-console-logo.png" alt="AWS" width={30} height={18} priority unoptimized /></span><span>Console</span></div>
           <form className="console-search" onSubmit={searchHostedZones} role="search">
             <span aria-hidden="true">⌕</span>
             <input
@@ -744,34 +764,83 @@ export default function Route53Console({
         <header className="topbar">
           <div>
             <nav className="breadcrumbs" aria-label="Breadcrumb">
-              <Link href="/hosted-zones" onClick={goToHostedZones}>Services</Link>
-              <span aria-hidden="true">›</span>
-              <Link href="/hosted-zones" onClick={goToHostedZones}>Networking &amp; Content Delivery</Link>
-              <span aria-hidden="true">›</span>
-              <Link href="/hosted-zones" onClick={goToHostedZones}>Route 53</Link>
+              {activeSection === "Hosted Zones" && view === "list" ? (
+                <>
+                  <Link href="/hosted-zones" onClick={goToHostedZones}>Route 53</Link>
+                  <span aria-hidden="true">›</span>
+                  <span>Hosted zones</span>
+                </>
+              ) : (
+                <>
+                  <Link href="/hosted-zones" onClick={goToHostedZones}>Services</Link>
+                  <span aria-hidden="true">›</span>
+                  <Link href="/hosted-zones" onClick={goToHostedZones}>Networking &amp; Content Delivery</Link>
+                  <span aria-hidden="true">›</span>
+                  <Link href="/hosted-zones" onClick={goToHostedZones}>Route 53</Link>
+                </>
+              )}
             </nav>
-            <h1>
-              {view === "create-zone" ? "Create hosted zone"
-                : view === "edit-zone" ? "Edit hosted zone"
-                  : view === "create-record" ? "Create record"
-                    : view === "detail" ? selectedZone?.name || "Hosted zone details"
-                      : "Hosted zones"}
-            </h1>
+            {!(activeSection === "Hosted Zones" && view === "list") ? (
+              <h1>
+                {activeSection === "Dashboard" ? "Dashboard"
+                  : view === "create-zone" ? "Create hosted zone"
+                  : view === "edit-zone" ? "Edit hosted zone"
+                    : view === "create-record" ? "Create record"
+                      : view === "detail" ? selectedZone?.name || "Hosted zone details"
+                        : "Hosted zones"}
+              </h1>
+            ) : null}
           </div>
         </header>
 
         {error ? <div className="alert error">{error}</div> : null}
 
-        {activeSection === "Hosted Zones" && view === "list" ? <div className="card main-panel">
-          <div className="panel-header">
+        {activeSection === "Hosted Zones" && view === "list" ? <div className="card main-panel hosted-zones-panel">
+          <div className="panel-header hosted-zones-header">
             <div>
-              <p className="eyebrow">Amazon Route 53</p>
               <h2>Hosted zones <span className="count-badge">{zoneTotal}</span></h2>
-              <p className="panel-description">Choose a hosted zone to view and manage its DNS records, including A, AAAA, CNAME, MX, TXT, and more.</p>
+              <p className="panel-description">View and manage hosted zones. Search by domain name, then select a zone to view its DNS records.</p>
             </div>
-            <div className="header-actions">
-              <button type="button" className="secondary-button" onClick={() => searchInput.current?.focus()}>
-                Search <kbd>/</kbd>
+            <div className="header-actions zone-list-actions">
+              <button type="button" className="secondary-button" onClick={() => void loadZones()} aria-label="Refresh hosted zones">
+                <span aria-hidden="true">↻</span> Refresh
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!selectedZone}
+                onClick={() => {
+                  if (!selectedZone) return;
+                  setError(null);
+                  setRecordPage(1);
+                  router.push(`/hosted-zones/${selectedZone.id}`);
+                }}
+              >
+                View details
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!selectedZone}
+                onClick={() => selectedZone && openEditZoneModal(selectedZone)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!selectedZone}
+                onClick={() => selectedZone && deleteZone(selectedZone.id)}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!selectedZone}
+                onClick={() => selectedZone && exportZone(selectedZone, "json")}
+              >
+                Export JSON
               </button>
               <button type="button" className="primary-button" onClick={openCreateZoneModal}>
                 Create hosted zone
@@ -779,30 +848,60 @@ export default function Route53Console({
             </div>
           </div>
 
-          <div className="toolbar">
-            <input
-              ref={searchInput}
-              aria-label="Search hosted zones"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setConsoleSearch(e.target.value);
-                setZonePage(1);
-              }}
-              placeholder="Search hosted zones by domain name"
-            />
+          <div className="zone-list-toolbar">
+            <div className="toolbar">
+              <input
+                ref={searchInput}
+                aria-label="Search hosted zones"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setConsoleSearch(e.target.value);
+                  setZonePage(1);
+                }}
+                placeholder="Filter hosted zones by name"
+              />
+            </div>
+            <div className="zone-list-pagination" aria-label="Hosted zone page controls">
+              <button
+                type="button"
+                className="page-button"
+                aria-label="Previous page"
+                disabled={zonePage <= 1}
+                onClick={() => setZonePage((page) => page - 1)}
+              >
+                ‹
+              </button>
+              <span>Page {zonePage} of {Math.max(1, Math.ceil(zoneTotal / zonePageSize))}</span>
+              <button
+                type="button"
+                className="page-button"
+                aria-label="Next page"
+                disabled={zonePage >= Math.ceil(zoneTotal / zonePageSize)}
+                onClick={() => setZonePage((page) => page + 1)}
+              >
+                ›
+              </button>
+              <label>
+                Rows
+                <select value={zonePageSize} onChange={(e) => { setZonePageSize(Number(e.target.value)); setZonePage(1); }}>
+                  {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
 
-          <div className="table-wrap">
-            <table>
+          <div className="table-wrap zone-table-wrap">
+            <table className="zone-table">
               <thead>
                 <tr>
+                  <th aria-label="Select hosted zone"></th>
                   <th>Hosted zone name</th>
                   <th>Type</th>
+                  <th>Created by</th>
                   <th>Record count</th>
-                  <th>Created</th>
-                  <th>Comment</th>
-                  <th>Actions</th>
+                  <th>Description</th>
+                  <th>Hosted zone ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -814,47 +913,51 @@ export default function Route53Console({
                       setError(null);
                       setSelectedZoneId(zone.id);
                       setZoneDetail(zone);
-                      setRecordPage(1);
-                      router.push(`/hosted-zones/${zone.id}`);
                     }}
                   >
+                    <td className="zone-radio-cell">
+                      <input
+                        type="radio"
+                        name="selected-hosted-zone"
+                        aria-label={`Select ${zone.name}`}
+                        checked={selectedZoneId === zone.id}
+                        onChange={() => setSelectedZoneId(zone.id)}
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    </td>
                     <td>
-                      <strong>{zone.name}</strong>
+                      <button
+                        type="button"
+                        className="zone-name-link"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setError(null);
+                          setSelectedZoneId(zone.id);
+                          setZoneDetail(zone);
+                          setRecordPage(1);
+                          router.push(`/hosted-zones/${zone.id}`);
+                        }}
+                      >
+                        {zone.name}
+                      </button>
                     </td>
                     <td><span className="status-pill">{zone.zone_type === "private" ? "Private hosted zone" : "Public hosted zone"}</span></td>
+                    <td>Route 53</td>
                     <td>{zone.record_count}</td>
-                    <td>{new Date(zone.created_at).toLocaleDateString()}</td>
                     <td>{zone.comment || "—"}</td>
-                    <td>
-                      <div className="inline-actions" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" onClick={() => openEditZoneModal(zone)}>
-                          Edit
-                        </button>
-                        <button type="button" className="danger-ghost" onClick={() => deleteZone(zone.id)}>
-                          Delete
-                        </button>
-                        <button type="button" onClick={() => exportZone(zone, "json")}>
-                          Export JSON
-                        </button>
-                      </div>
-                    </td>
+                    <td>{zone.id}</td>
                   </tr>
                 ))}
+                {zones.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="empty-state">No hosted zones found.</td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
           <div className="pagination-bar">
             <span>Showing {zoneTotal === 0 ? 0 : (zonePage - 1) * zonePageSize + 1}–{Math.min(zonePage * zonePageSize, zoneTotal)} of {zoneTotal} hosted zones</span>
-            <div className="pagination-controls">
-              <label>Rows per page
-                <select value={zonePageSize} onChange={(e) => { setZonePageSize(Number(e.target.value)); setZonePage(1); }}>
-                  {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
-                </select>
-              </label>
-              <button type="button" className="page-button" disabled={zonePage <= 1} onClick={() => setZonePage((page) => page - 1)}>‹</button>
-              <span>Page {zonePage} of {Math.max(1, Math.ceil(zoneTotal / zonePageSize))}</span>
-              <button type="button" className="page-button" disabled={zonePage >= Math.ceil(zoneTotal / zonePageSize)} onClick={() => setZonePage((page) => page + 1)}>›</button>
-            </div>
           </div>
         </div> : null}
 
@@ -988,7 +1091,108 @@ export default function Route53Console({
           </div>
         ) : null}
 
-        {activeSection !== "Hosted Zones" ? (
+        {activeSection === "Dashboard" ? (
+          <div className="dashboard-layout">
+            <div className="dashboard-main">
+              <section className="dashboard-intro">
+                <p className="eyebrow">Network &amp; Content Delivery</p>
+                <h2>Amazon Route 53</h2>
+                <p className="dashboard-lead">Manage hosted zones and the DNS record sets that route requests for your domains.</p>
+                <button type="button" className="primary-button" onClick={goToHostedZones}>
+                  Open hosted zones
+                </button>
+              </section>
+
+              <section className="dashboard-section" aria-labelledby="dashboard-products-title">
+                <h3 id="dashboard-products-title">Route 53 services</h3>
+                <div className="dashboard-product-list">
+                  <button type="button" className="dashboard-product" onClick={goToHostedZones}>
+                    <span className="dashboard-product-icon" aria-hidden="true">HZ</span>
+                    <span><strong>Hosted zones</strong><small>Browse zones and manage their DNS records.</small></span>
+                    <span className="dashboard-product-arrow" aria-hidden="true">›</span>
+                  </button>
+                  {["Health checks", "Traffic policies", "Resolver"].map((section) => (
+                    <button
+                      key={section}
+                      type="button"
+                      className="dashboard-product"
+                      onClick={() => setActiveSection(section)}
+                    >
+                      <span className="dashboard-product-icon" aria-hidden="true">
+                        {section === "Health checks" ? "HC" : section === "Traffic policies" ? "TP" : "R"}
+                      </span>
+                      <span><strong>{section}</strong><small>Explore this Route 53 service area.</small></span>
+                      <span className="dashboard-product-arrow" aria-hidden="true">›</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="dashboard-section" aria-labelledby="dashboard-overview-title">
+                <h3 id="dashboard-overview-title">Workspace overview</h3>
+                <div className="dashboard-metrics">
+                  <article className="dashboard-metric">
+                    <span>Hosted zones</span>
+                    <strong>{zoneTotal}</strong>
+                    <button type="button" onClick={goToHostedZones}>View zones <span aria-hidden="true">›</span></button>
+                  </article>
+                  <article className="dashboard-metric">
+                    <span>Records in loaded zones</span>
+                    <strong>{zones.reduce((total, zone) => total + zone.record_count, 0)}</strong>
+                    <small>Across the zones on this page</small>
+                  </article>
+                  <article className="dashboard-metric">
+                    <span>Private zones</span>
+                    <strong>{zones.filter((zone) => zone.zone_type === "private").length}</strong>
+                    <small>Among the zones on this page</small>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <aside className="dashboard-aside">
+              <section className="dashboard-side-card dashboard-get-started">
+                <p className="eyebrow">Quick start</p>
+                <h3>Set up a hosted zone</h3>
+                <p>Create a zone, then add and manage its DNS records from one place.</p>
+                <button type="button" className="primary-button" onClick={openCreateZoneModal}>Create hosted zone</button>
+              </section>
+              <section className="dashboard-side-card">
+                <h3>Recent hosted zones</h3>
+                {zones.length ? (
+                  <ul className="dashboard-recent-list">
+                    {zones.slice(0, 4).map((zone) => (
+                      <li key={zone.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveSection("Hosted Zones");
+                            window.sessionStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, "Hosted Zones");
+                            setSelectedZoneId(zone.id);
+                            setZoneDetail(zone);
+                            setRecordPage(1);
+                            router.push(`/hosted-zones/${zone.id}`);
+                          }}
+                        >
+                          <strong>{zone.name}</strong>
+                          <span>{zone.record_count} records</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="dashboard-muted">No hosted zones yet.</p>}
+                <button type="button" className="dashboard-text-link" onClick={goToHostedZones}>View all hosted zones <span aria-hidden="true">›</span></button>
+              </section>
+              <section className="dashboard-side-card dashboard-resources">
+                <h3>Helpful links</h3>
+                <a href="https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html" target="_blank" rel="noreferrer">Route 53 documentation <span aria-hidden="true">↗</span></a>
+                <a href="https://docs.aws.amazon.com/Route53/latest/APIReference/Welcome.html" target="_blank" rel="noreferrer">Route 53 API reference <span aria-hidden="true">↗</span></a>
+              </section>
+            </aside>
+          </div>
+        ) : null}
+
+        {activeSection !== "Hosted Zones" && activeSection !== "Dashboard" ? (
           <div className="card coming-soon">
             <p className="eyebrow">Amazon Route 53</p>
             <h2>{activeSection}</h2>
